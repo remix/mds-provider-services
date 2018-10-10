@@ -1,5 +1,9 @@
 version: "3"
 services:
+  base:
+    build: ./base
+    image: mds_provider_base
+    container_name: mds_provider_base
   client:
     build: ./client
     image: mds_provider_client

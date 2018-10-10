@@ -1,21 +1,8 @@
-FROM CityofSantaMonica/python-base:latest
+FROM CityofSantaMonica/mds-provider-services
 
-# the first few operations require root
-USER root
-
-# use a subdirectory of the default Notebook directory
-WORKDIR /home/$NB_USER/work/mds
-
-# setup the app code and data directory
 COPY . .
-RUN fix-permissions /home/$NB_USER
 
-# now we've "fixed permissions", install pip packages as the notebook user
-USER $NB_UID
-
-RUN pip install -r requirements.txt && \
-    fix-permissions $CONDA_DIR && \
-    fix-permissions /home/$NB_USER
+RUN pipenv install
 
 # sets up an "executable container" for the api script
 ENTRYPOINT ["python", "main.py"]

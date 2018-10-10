@@ -1,6 +1,8 @@
 FROM CityofSantaMonica/mds-provider-services
 
-COPY Pipfile Pipfile
+COPY . .
+
+RUN pipenv install
 
 # sets up an "executable container" for the data generation script
 ENTRYPOINT ["python", "main.py"]

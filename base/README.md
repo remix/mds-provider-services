@@ -1,4 +1,4 @@
-# mds-provider-services
+# base
 
 Base Docker image for MDS Provider services.
 
@@ -11,7 +11,7 @@ This directory is the root of the Notebook server filesystem.
 First, ensure the image is up to date locally:
 
 ```console
-$ docker-compose build --no-cache python-base
+$ docker-compose build --no-cache base
 ```
 
 Then start the notebook server with:
