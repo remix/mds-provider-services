@@ -1,8 +1,10 @@
 import argparse
+import boto3
 from configparser import ConfigParser
 from datetime import datetime, timedelta
 import dateutil.parser
 import json
+import mds
 from mds.api.client import ProviderClient
 import mds.providers
 import os
@@ -17,42 +19,49 @@ def setup_cli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
+        "--aws_region",
+        type=str,
+        help="The AWS region to use for S3 uploads. Only applies when given with\
+        the --s3_bucket argument. Overrides the AWS_DEFAULT_REGION environment variable.\
+        If AWS_DEFAULT_REGION is not set, this parameter must be given."
+    )
+    parser.add_argument(
         "--bbox",
         type=str,
         help="The bounding-box with which to restrict the results of this request.\
-              The order is southwest longitude, southwest latitude, northeast longitude, northeast latitude.\
-              For example: --bbox -122.4183,37.7758,-122.4120,37.7858"
+        The order is southwest longitude, southwest latitude, northeast longitude, northeast latitude.\
+        For example: --bbox -122.4183,37.7758,-122.4120,37.7858"
     )
     parser.add_argument(
         "--config",
         type=str,
         help="Path to a provider configuration file to use.\
-              The default is `.config`."
+        The default is `.config`."
     )
     parser.add_argument(
         "--device_id",
         type=str,
         help="The device_id to obtain results for.\
-              Only applies to --trips."
+        Only applies to --trips."
     )
     parser.add_argument(
         "--duration",
         type=int,
         help="Number of seconds; with --start_time or --end_time,\
-              defines a time query range."
+        defines a time query range."
     )
     parser.add_argument(
         "--end_time",
         type=str,
         help="The end of the time query range for this request.\
-              Should be either int Unix seconds or ISO-8061 datetime format.\
-              At least one of end_time or start_time is required."
+        Should be either int Unix seconds or ISO-8061 datetime format.\
+        At least one of end_time or start_time is required."
     )
     parser.add_argument(
         "--no_paging",
         action="store_true",
         help="Flag indicating paging through the response should *not* occur.\
-              Return *only* the first page of data."
+        Return *only* the first page of data."
     )
     parser.add_argument(
         "--output",
@@ -64,21 +73,29 @@ def setup_cli():
         type=str,
         nargs="+",
         help="One or more providers to query, separated by commas.\
-              Could be provider_name or provider_id.\
-              The default is to query all configured providers."
+        Could be provider_name or provider_id.\
+        The default is to query all configured providers."
     )
     parser.add_argument(
         "--ref",
         type=str,
         help="Git branch name, commit hash, or tag at which to reference MDS.\
-              The default is `master`."
+        The default is `master`."
+    )
+    parser.add_argument(
+        "--s3_bucket",
+        type=str,
+        help="AWS S3 bucket to store data files in. When used with --output,\
+        a common key prefix is given to data files. AWS credentials must be configured;\
+        use AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars or standard AWS\
+        credential configuration in e.g. ~/.aws/credentials."
     )
     parser.add_argument(
         "--start_time",
         type=str,
         help="The beginning of the time query range for this request.\
-              Should be either int Unix seconds or ISO-8061 datetime format.\
-              At least one of end_time or start_time is required."
+        Should be either int Unix seconds or ISO-8061 datetime format.\
+        At least one of end_time or start_time is required."
     )
     parser.add_argument(
         "--status_changes",
@@ -94,7 +111,7 @@ def setup_cli():
         "--vehicle_id",
         type=str,
         help="The vehicle_id to obtain results for.\
-              Only applies to --trips."
+        Only applies to --trips."
     )
 
     return parser, parser.parse_args()
@@ -160,22 +177,43 @@ def runtime_providers(registry, args):
         return [p for p in registry \
                 if p.provider_name.lower() in names or p.provider_id in ids]
 
-def file_name(output, provider, datatype, start_time, end_time):
+def file_name(output, datatype, provider, start_time, end_time):
     """
     Generate a filename from the given parameters.
     """
-    file = f"{provider}_{datatype}_{start_time.isoformat()}_{end_time.isoformat()}.json"
-    return os.path.join(output, file)
+    fname = f"{datatype}_{provider}_{start_time.isoformat()}_{end_time.isoformat()}.json"
+    return os.path.join(output, fname) if output else fname
 
-def dump_payloads(output, payloads, datatype, start_time, end_time):
+def dump_payloads(payloads, output, datatype, start_time, end_time, **kwargs):
     """
     Write a the :payloads: mapping (provider name => data payload) to json files in :output:.
-    """
-    for provider, payload in payloads.items():
-        file = file_name(output, provider.provider_name, datatype, start_time, end_time)
-        with open(file, "w") as f:
-            json.dump(payload, f)
 
+    Optionally provide :kwargs: for s3_service and s3_bucket information.
+    """
+    if "s3_bucket" in kwargs:
+        s3bucket = kwargs["s3_bucket"]
+        s3 = getattr(kwargs, "s3_service", s3_service())
+        print("In S3 bucket: {}".format(s3bucket))
+    else:
+        print("In {}".format(output))
+
+    for provider, payload in payloads.items():
+        fname = file_name(output, datatype, provider.provider_name, start_time, end_time)
+        if "s3_bucket" in kwargs:
+            body = json.dumps(payload).encode()
+            s3.Object(bucket_name=s3bucket, key=fname).put(Body=body)
+        else:
+            with open(fname, "w") as f:
+                json.dump(payload, f)
+
+def s3_service(region_name=None):
+    """
+    Helper to return an s3 service using :region_name: or environment variables.
+    """
+    if region_name:
+        return boto3.resource("s3", region_name=region_name)
+
+    return boto3.resource("s3")
 
 if __name__ == "__main__":
     arg_parser, args = setup_cli()
@@ -198,9 +236,24 @@ if __name__ == "__main__":
     ref = args.ref or config["DEFAULT"]["ref"] or "master"
     print(f"Referencing MDS @ {ref}")
 
-    # prepare output dir
-    output = args.output or "data/"
-    os.makedirs(output, exist_ok=True)
+    # used in later requests
+    kwargs = {}
+
+    # determine output destination
+    if args.s3_bucket is not None:
+        try:
+            s3 = s3_service(region_name=args.region_name)
+            kwargs["s3_bucket"] = args.s3_bucket
+            kwargs["s3_service"] = s3
+        except Exception as ex:
+            print("You must configure AWS credentials to use S3.")
+            print("Set the environment variables: AWS_AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.")
+            print("Or configure credentials in the default location (usually ~/.aws/credentials.")
+            print("AWS_DEFAULT_REGION environment variable or --aws_region parameter are also required.")
+            print(ex)
+            exit(1)
+    elif args.output is not None:
+        os.makedirs(args.output, exist_ok=True)
 
     # download the Provider registry and filter based on params
     print("Downloading provider registry...")
@@ -227,9 +280,14 @@ if __name__ == "__main__":
                                                    bbox=args.bbox,
                                                    page=not args.no_paging)
 
-        print(f"Writing Status Changes data file(s) to {output}")
+        print(f"Writing Status Changes data file(s)")
 
-        dump_payloads(output, status_changes, mds.STATUS_CHANGES, start_time, end_time)
+        dump_payloads(payloads=status_changes,
+                      output=args.output,
+                      datatype=mds.STATUS_CHANGES,
+                      start_time=start_time,
+                      end_time=end_time,
+                      **kwargs)
 
         print(f"Status Changes download complete")
 
@@ -245,9 +303,14 @@ if __name__ == "__main__":
                                  bbox=args.bbox,
                                  page=not args.no_paging)
 
-        print(f"Writing Trips data file(s) to {output}")
+        print(f"Writing Trips data file(s)")
 
-        dump_payloads(output, trips, mds.TRIPS, start_time, end_time)
+        dump_payloads(payloads=trips,
+                      output=args.output,
+                      datatype=mds.TRIPS,
+                      start_time=start_time,
+                      end_time=end_time,
+                      **kwargs)
 
         print(f"Trips download complete")
 

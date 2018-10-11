@@ -56,11 +56,13 @@ services:
     build: ./pull
     image: mds_provider_pull
     container_name: mds_provider_pull
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_DEFAULT_REGION
     ports:
       - "${NB_PULL_HOST_PORT}:8888"
     user: root
-    volumes:
-      - data:/home/${NB_USER}/work/mds/data
   server:
     build: ./server
     image: mds_provider_server
