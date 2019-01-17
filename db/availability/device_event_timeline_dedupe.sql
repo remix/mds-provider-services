@@ -6,7 +6,7 @@ CREATE VIEW public.device_event_timeline_dedupe AS
 
 SELECT
     *,
-    row_number() OVER () AS row_num
+    row_number() OVER (PARTITION BY provider_id, device_id ORDER BY event_time) AS row_num
 FROM
     (SELECT -- the non-duplicated records
         provider_id,
@@ -46,7 +46,7 @@ FROM
                 AND (_left.row_num + 1) = _right.row_num
                 -- both 'available' -> user/data/transmission error
                 AND ((_left.event_type = 'available'::event_types AND _right.event_type = 'available'::event_types) OR
-                -- both the same, not 'avail' -> 
+                -- both the same, not 'avail' ->
                     (_left.event_type <> 'available'::event_types AND _right.event_type <> 'available'::event_types))
         ) dupe
         WHERE
