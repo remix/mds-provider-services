@@ -4,18 +4,18 @@ CREATE VIEW public.csm_trips AS
 
 SELECT
     trips.provider_id,
-    trips.provider_name,
     trips.device_id,
-    trips.vehicle_type,
     trips.trip_id,
     trips.start_time,
     trips.end_time,
-    csm_routes.first_csm_time,
-    csm_routes.last_csm_time,
-    csm_routes.first_csm_point
+    --csm_routes.first_csm_time,
+    extract(epoch from trips.start_time) as first_csm_time,
+    --csm_routes.last_csm_time,
+    extract(epoch from trips.end_time) as last_csm_time,
+    --csm_routes.first_csm_point
+    ST_SETSRID(ST_GeomFromGeoJSON(route_geojson->'features'->0->>'geometry'), 4326) as first_csm_point
 FROM
-    trips INNER JOIN csm_routes
-        ON trips.provider_id = csm_routes.provider_id
-        AND trips.trip_id = csm_routes.trip_id
-
+    trips
+WHERE
+    org_id = 11
 ;

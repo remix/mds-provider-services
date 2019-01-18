@@ -6,16 +6,14 @@ CREATE VIEW public.active_windows AS
 
 SELECT
     provider_id,
-    provider_name,
-    vehicle_type,
     device_id,
     to_timestamp(first_csm_time) as start_time,
     to_timestamp(last_csm_time) as end_time,
     first_csm_point AS event_location,
-    'reserved'::event_types AS start_event_type,
-    'available'::event_types AS end_event_type,
-    'user_pick_up'::event_type_reasons AS start_reason,
-    'user_drop_off'::event_type_reasons AS end_reason
+    'reserved' AS start_event_type,
+    'available' AS end_event_type,
+    'user_pick_up' AS start_reason,
+    'user_drop_off' AS end_reason
 FROM
     csm_trips
 ;
