@@ -5,7 +5,7 @@ Command-line interface implementing various MDS Provider data analytics, includi
 """
 
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import dateutil
 import mds.providers
 from measure import DeviceCounter
@@ -71,6 +71,10 @@ def setup_cli():
         Should be either int Unix seconds or ISO-8601 datetime format\
         At least one of end or start is required."
     )
+    parser.add_argument(
+        "--table",
+        type=str
+    )
 
     return parser, parser.parse_args()
 
@@ -115,7 +119,7 @@ def log(args, msg):
         return datetime.utcnow().isoformat()
 
     if args.debug:
-        print(f"[{__now()}] {msg}")
+        print(f"{msg}")
 
 
 def availability(provider_name, vehicle_type, args):
@@ -124,54 +128,70 @@ def availability(provider_name, vehicle_type, args):
     """
     oneday = timedelta(days=1)
 
-    log(args, f"""Starting availability calculation:
-    - time range: {args.start} to {args.end}
-    - provider: {provider_name}
-    - vehicle type: {vehicle_type}""")
+    # log(args, f"""Starting availability calculation:
+    # - time range: {args.start} to {args.end}
+    # - provider: {provider_name}
+    # - vehicle type: {vehicle_type}""")
 
-    devices = DeviceCounter(args.start, args.end, local=args.local, debug=args.debug)
+    devices = DeviceCounter(args.start, args.end, local=args.local, debug=False)#, debug=args.debug)
+
+    table = "csm_availability" if args.table is None else args.table
 
     q = query.Availability(args.start, args.end,
         vehicle_types=vehicle_type,
-        table="csm_availability",
-        local=args.local, debug=True)
+        table=table,
+        local=args.local, debug=False)
 
     results = {}
 
-    log(args, f"Starting calculation for {provider_name}")
+    # log(args, f"Querying data for {provider_name}")
 
     data = q.get(provider_name=provider_name)
+
+    # log(args, f"Starting calculation for {provider_name}")
+
     partition = devices.count(data).partition()
 
-    log(args, partition.describe())
+    # log(args, partition.describe())
 
     overall_avg = devices.average()
-    log(args, f"Overall average: {overall_avg}")
+    num_windows = len(data)
+    num_distinct_devices = len(data.device_id.unique())
+    log(args, f"{table}, {provider_name}, {overall_avg}, {num_windows}, {num_distinct_devices}")
+
+    # TODO - calc average window length
+    # idx = data.end_time.isnull( )
+    # data.end_time[ idx ] = args.end
 
     counts = {}
-    start = args.start
+    # start = args.start
 
-    while start < args.end:
-        end = start + oneday
-        log(args, f"Counting {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
+    # while start < args.end:
+    #     end = start + oneday
+    #     log(args, f"Counting {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}")
 
-        _q = query.Availability(start, end,
-            vehicle_types=vehicle_type,
-            table="csm_availability",
-            local=args.local, debug=args.debug)
+    #     _q = query.Availability(start, end,
+    #         vehicle_types=vehicle_type,
+    #         table=table,
+    #         threshold=args.threshold,
+    #         local=args.local, debug=args.debug)
 
-        _data = _q.get(provider_name=provider_name)
+    #     _data = _q.get(provider_name=provider_name)
 
-        log(args, f"{len(_data)} availability records in time period")
+    #     log(args, f"{len(_data)} availability records in time period")
 
-        _devices = DeviceCounter(start, end, local=args.local, debug=args.debug)
-        counts[start] = _devices.count(_data)
+    #     _devices = DeviceCounter(start, end, local=args.local)#, debug=args.debug)
+    #     counts[start] = _devices.count(_data)
 
-        start = end
+        # start = end
 
-    if args.debug:
-        for date, count in counts.items():
-            print(f"{provider_name},{vehicle_type},{date.strftime('%Y-%m-%d')},{count.average()},{overall_avg}")
+    # TODO - calc average window length
+    # idx = data.end_time.isnull( )
+    # data.end_time[ idx ] = args.end
+
+    # if args.debug:
+    #     for date, count in counts.items():
+    #         print(f"{provider_name},{vehicle_type},{date.strftime('%Y-%m-%d')},{count.average()},{overall_avg}")
 
     return overall_avg, counts
 
@@ -193,9 +213,9 @@ if __name__ == "__main__":
     if args.availability:
         for provider_name, vehicle_type in dict(args.queries).items():
             overall_avg, counts = availability(provider_name, vehicle_type, args)
-            if args.output:
-                for date, count in counts.items():
-                    print(f"{provider_name},{vehicle_type},{date.strftime('%Y-%m-%d')},{count.average()},{overall_avg}")
+            # if args.output:
+            #     for date, count in counts.items():
+            #         print(f"{provider_name},{vehicle_type},{date.strftime('%Y-%m-%d')},{count.average()},{overall_avg}")
     else:
         arg_parser.print_help()
         exit(0)

@@ -1,47 +1,32 @@
 from mds.db.load import data_engine
 import os
+import json
 import pandas
 
+def get_url():
+    # This is not an ideal way of extracting the SSM parameters that are json-encoded strings.
+    # The alternative is to add an additional layer of indirection where we
+    # call ssm-env with a script that parses the json and sets
+    # DB_USER, DB_PASSWORD, etc.
+    # TODO: fork ssm-env and allow us to parse JSON directly.
+    ssm_db_credentials = os.getenv('DB_CREDENTIALS', None)
+    # This one param isnt stored in ssm.
+    db_name = os.getenv('DB_NAME', 'remix-mobility-raw-data')
+    if ssm_db_credentials is not None:
+        ssm_db_json = json.loads(ssm_db_credentials)
+        user = ssm_db_json['username']
+        user_pw = ssm_db_json['password']
+        db_host = 'localhost' #ssm_db_json['host']
+        db_port = 9993 #ssm_db_json['port']
+    else:
+        user = os.getenv('DB_USER', 'airflow')
+        user_pw = os.getenv('DB_PASSWORD', 'airflow')
+        db_host = os.getenv('DB_HOST', 'localhost')
+        db_port = os.getenv('DB_PORT', 5433)
+    return f"postgresql+psycopg2://{user}:{user_pw}@{db_host}:{db_port}/{db_name}"
 
-def parse_db_env():
-    """
-    Gets the required database configuration out of the Environment.
-
-    Returns dict:
-        - user
-        - password
-        - db
-        - host
-        - port
-    """
-    try:
-        user, password = os.environ["MDS_USER"], os.environ["MDS_PASSWORD"]
-    except:
-        print("The MDS_USER or MDS_PASSWORD environment variables are not set. Exiting.")
-        exit(1)
-
-    try:
-        db = os.environ["MDS_DB"]
-    except:
-        print("The MDS_DB environment variable is not set. Exiting.")
-        exit(1)
-
-    try:
-        host = os.environ["POSTGRES_HOSTNAME"]
-    except:
-        print("The POSTGRES_HOSTNAME environment variable is not set. Exiting.")
-        exit(1)
-
-    try:
-        port = os.environ["POSTGRES_HOST_PORT"]
-    except:
-        port = 5432
-        print("No POSTGRES_HOST_PORT environment variable set, defaulting to:", port)
-
-    return { "user": user, "password": password, "db": db, "host": host, "port": port }
-
-ENGINE = data_engine(**parse_db_env())
-
+uri = get_url()
+ENGINE = data_engine(get_url())
 
 class TimeQuery:
     """
@@ -122,14 +107,14 @@ class TimeQuery:
         provider_name = kwargs.get("provider_name", self.provider_name)
 
         if provider_name:
-            predicates.append(f"provider_name = '{provider_name or self.provider_name}'")
+            predicates.append(f"provider_id = '{provider_name or self.provider_name}'")
 
-        vts = "'::vehicle_types,'"
-        vehicle_types = kwargs.get("vehicle_types", self.vehicle_types)
-        if vehicle_types:
-            if not isinstance(vehicle_types, list):
-                vehicle_types = [vehicle_types]
-            predicates.append(f"vehicle_type IN ('{vts.join(vehicle_types)}'::vehicle_types)")
+        # vts = "'::vehicle_types,'"
+        # vehicle_types = kwargs.get("vehicle_types", self.vehicle_types)
+        # if vehicle_types:
+        #     if not isinstance(vehicle_types, list):
+        #         vehicle_types = [vehicle_types]
+        #     predicates.append(f"vehicle_type IN ('{vts.join(vehicle_types)}'::vehicle_types)")
 
         predicates = " AND ".join(predicates)
 
