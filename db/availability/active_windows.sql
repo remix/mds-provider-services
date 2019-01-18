@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was active in a trip
 
-DROP VIEW IF EXISTS public.active_windows_inside CASCADE;
+DROP VIEW IF EXISTS public.active_windows_all CASCADE;
 
-CREATE VIEW public.active_windows_inside AS
+CREATE VIEW public.active_windows_all AS
 
 SELECT
     provider_id,
@@ -15,5 +15,5 @@ SELECT
     'user_pick_up' AS start_reason,
     'user_drop_off' AS end_reason
 FROM
-    csm_trips_inside
+    csm_trips_all
 ;

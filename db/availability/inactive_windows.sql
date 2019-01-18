@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was marked as available for rental
 
-DROP VIEW IF EXISTS public.inactive_windows_all_from_csm_trips CASCADE;
+DROP VIEW IF EXISTS public.inactive_windows_all_from_trips CASCADE;
 
-CREATE VIEW public.inactive_windows_all_from_csm_trips AS
+CREATE VIEW public.inactive_windows_all_from_trips AS
 
 SELECT
     avail.provider_id as provider_id,
