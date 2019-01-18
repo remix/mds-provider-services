@@ -6,7 +6,7 @@ CREATE VIEW public.device_event_timeline_dedupe AS
 
 SELECT
     *,
-    row_number() OVER () AS row_num
+    row_number() OVER (order by provider_id, device_id, event_time) AS row_num
 FROM
     (SELECT -- the non-duplicated records
         provider_id,

@@ -10,7 +10,7 @@ SELECT
 FROM
     events
 WHERE
-    org_id = 11
+    org_id = 590
 ORDER BY
     provider_id,
     row_num
