@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was in the public right-of-way
 
-DROP VIEW IF EXISTS public.availability_inside_from_trips CASCADE;
+DROP VIEW IF EXISTS public.availability_all_from_csm_trips CASCADE;
 
-CREATE VIEW public.availability_inside_from_trips AS
+CREATE VIEW public.availability_all_from_csm_trips AS
 
 SELECT
     provider_id,
@@ -15,7 +15,7 @@ SELECT
     start_time,
     end_time
 FROM
-    inactive_windows_inside_from_trips
+    inactive_windows_all_from_csm_trips
 
 UNION
 
