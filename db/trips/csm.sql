@@ -1,6 +1,6 @@
-DROP VIEW IF EXISTS public.csm_trips CASCADE;
+DROP VIEW IF EXISTS public.csm_trips_inside CASCADE;
 
-CREATE VIEW public.csm_trips AS
+CREATE VIEW public.csm_trips_inside AS
 
 SELECT
     trips.provider_id,
@@ -18,4 +18,5 @@ FROM
     trips
 WHERE
     org_id = 11
+AND ST_Intersects(csm_city_boundary(), ST_SETSRID(ST_GeomFromGeoJSON(route_geojson->'features'->0->>'geometry'), 4326))
 ;
