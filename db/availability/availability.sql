@@ -15,7 +15,7 @@ SELECT
     start_time,
     end_time
 FROM
-    inactive_windows_all_from_csm_trips
+    inactive_windows_all_from_trips
 
 UNION
 
