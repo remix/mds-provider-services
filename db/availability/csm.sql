@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was in the public right-of-way
 
-DROP VIEW IF EXISTS public.csm_availability_all_from_events CASCADE;
+DROP VIEW IF EXISTS public.csm_availability_inside_from_events CASCADE;
 
-CREATE VIEW public.csm_availability_all_from_events AS
+CREATE VIEW public.csm_availability_inside_from_events AS
 
 SELECT
     provider_id,
@@ -15,7 +15,7 @@ SELECT
     end_time,
     event_location
 FROM
-    public.availability_all_from_events
+    public.availability_inside_from_events
 ORDER BY
     (start_time, end_time)
 

@@ -1,8 +1,8 @@
 -- A de-deduplicated device event timeline
 
-DROP VIEW IF EXISTS public.device_event_timeline_dedupe_all CASCADE;
+DROP VIEW IF EXISTS public.device_event_timeline_dedupe_inside CASCADE;
 
-CREATE VIEW public.device_event_timeline_dedupe_all AS
+CREATE VIEW public.device_event_timeline_dedupe_inside AS
 
 SELECT
     *,
@@ -29,7 +29,7 @@ FROM
                 _right.row_num IS NULL AS condition
             FROM
                 -- join with self, for each provider's device
-                device_event_timeline_all _left LEFT JOIN device_event_timeline_all _right
+                device_event_timeline_inside _left LEFT JOIN device_event_timeline_inside _right
                 ON _left.provider_id = _right.provider_id
                 AND _left.device_id = _right.device_id
                 -- the next row, e.g. the next event in the timeline for this provider's device
