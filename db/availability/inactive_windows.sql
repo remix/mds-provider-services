@@ -1,8 +1,8 @@
 -- Windows of time a given provider's device was marked as available for rental
 
-DROP VIEW IF EXISTS public.inactive_windows_all_from_trips CASCADE;
+DROP VIEW IF EXISTS public.inactive_windows_all_from_events CASCADE;
 
-CREATE VIEW public.inactive_windows_all_from_trips AS
+CREATE VIEW public.inactive_windows_all_from_events AS
 
 SELECT
     avail.provider_id as provider_id,
@@ -16,12 +16,12 @@ SELECT
     notavail.event_time AS end_time
 FROM
     device_event_timeline_dedupe_all avail LEFT JOIN device_event_timeline_dedupe_all notavail
-    ON avail.event_type = 'available'
+    ON (avail.event_type = 'available' or avail.event_type = 'reserved')
     AND notavail.event_type <> 'available'
     AND avail.provider_id = notavail.provider_id
     AND avail.device_id = notavail.device_id
     AND (avail.row_num + 1) = notavail.row_num
 WHERE
-    avail.event_type = 'available'
+    (avail.event_type = 'available' or avail.event_type = 'reserved')
 
 ;

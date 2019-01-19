@@ -1,23 +1,8 @@
 -- Windows of time a given provider's device was in the public right-of-way
 
-DROP VIEW IF EXISTS public.availability_all_from_trips CASCADE;
+DROP VIEW IF EXISTS public.availability_all_from_events CASCADE;
 
-CREATE VIEW public.availability_all_from_trips AS
-
-SELECT
-    provider_id,
-    device_id,
-    event_location,
-    start_event_type,
-    end_event_type,
-    start_reason,
-    end_reason,
-    start_time,
-    end_time
-FROM
-    inactive_windows_all_from_trips
-
-UNION
+CREATE VIEW public.availability_all_from_events AS
 
 SELECT
     provider_id,
@@ -30,6 +15,5 @@ SELECT
     start_time,
     end_time
 FROM
-    active_windows_all
-
+    inactive_windows_all_from_events
 ;
