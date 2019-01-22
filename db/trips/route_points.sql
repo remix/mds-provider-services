@@ -1,5 +1,9 @@
 DROP MATERIALIZED VIEW IF EXISTS public.route_points CASCADE;
 
+WITH org_trips AS (
+    SELECT * FROM trips WHERE org_id = 11;
+)
+
 CREATE MATERIALIZED VIEW public.route_points AS
 
 SELECT
@@ -8,7 +12,7 @@ SELECT
     coords.ts as time_point,
     coords.f as route_point,
     st_contains(csm_city_boundary(), csm_parse_feature_geom(coords.f)) as in_csm
-FROM trips CROSS JOIN LATERAL (
+FROM org_trips CROSS JOIN LATERAL (
     SELECT
         f,
         (f -> 'properties' ->> 'timestamp')::numeric as ts
@@ -19,4 +23,4 @@ ORDER BY
     trip_id,
     time_point
 
-WITH NO DATA;
+WITH DATA;

@@ -15,4 +15,4 @@ GROUP BY
 HAVING
     count(*) filter (where in_csm) > 0
 
-WITH NO DATA;
+WITH DATA;
