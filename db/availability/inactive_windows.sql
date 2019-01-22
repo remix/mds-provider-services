@@ -17,7 +17,7 @@ SELECT
 FROM
     device_event_timeline_dedupe_all avail LEFT JOIN device_event_timeline_dedupe_all notavail
     ON (avail.event_type = 'available' or avail.event_type = 'reserved')
-    AND notavail.event_type <> 'available'
+    AND notavail.event_type <> avail.event_type
     AND avail.provider_id = notavail.provider_id
     AND avail.device_id = notavail.device_id
     AND (avail.row_num + 1) = notavail.row_num
