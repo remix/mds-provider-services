@@ -88,9 +88,8 @@ def setup_cli():
     parser.add_argument(
         "--propulsion_types",
         type=str,
-        nargs="+",
-        default=[], # to be filled in below if not specified by user
-        metavar="PROPULSION_TYPE",
+        action="append",
+        metavar="PROPULSION_TYPES",
         help="A list of propulsion_types to use for the generated data, e.g. '{}'".format(" ".join(schema.propulsion_types))
     )
     parser.add_argument(
@@ -121,9 +120,8 @@ def setup_cli():
     parser.add_argument(
         "--vehicle_types",
         type=str,
-        nargs="+",
-        default=[], # to be filled in below if not specified by user
-        metavar="VEHICLE_TYPE",
+        action="append",
+        metavar="VEHICLE_TYPES",
         help="A list of vehicle_types to use for the generated data, e.g. '{}'".format(" ".join(schema.vehicle_types))
     )
     parser.add_argument(
